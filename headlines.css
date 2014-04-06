@@ -1,0 +1,116 @@
+input.feedurl {
+  width: 100%;
+}
+
+input.newcat {
+  width: auto;
+}
+
+ul.feeditems {
+padding: 0px;
+margin: 20px;
+}
+
+img {
+  max-width: 100%;
+  height: auto;
+}
+
+img.weather {
+  max-width: 100%;
+  width: auto;
+  height: auto;
+}
+
+div {
+  padding-top: 1px;
+}
+
+body {
+  background-color: #e9e9e9;
+}
+
+div.left {
+  float: left;
+  width: 33%;
+  margin: auto;
+}
+
+div.center {
+  width: 33%;
+  margin: auto;
+}
+
+div.right {
+  float: right;
+  width: 33%;
+  margin: auto;
+}
+
+div.box {
+  background-color: #fff;
+  border: 1px solid #ccc;
+  padding: 10px;
+  margin: 5px;
+  margin-top: 10px;
+}
+
+div.boxwithtitle {
+  background-color: #fff;
+  border-left: 1px solid #ccc;
+  border-right: 1px solid #ccc;
+  border-bottom: 1px solid #ccc;
+  padding: 10px;
+  margin: 5px;
+}
+
+div.hiddenbox {
+  display:None;
+}
+
+div.boxtitle {
+  text-align: center;
+  font-weight: bold;
+  background-color: #b8b8ff;
+  border-bottom: 1px solid #7e7eff;
+  border-top: 1px solid #7e7eff;
+  border-right: 1px solid #7e7eff;
+  border-left: 1px solid #7e7eff;
+  display: block;
+  padding: 5px;
+  margin-top: 10px;
+  margin-left: 5px;
+  margin-right: 5px;
+  margin-bottom: -5px;
+}
+
+div.footer {
+  float: right;
+  clear: both;
+  margin-bottom: 5px;
+  margin-right: 20px;
+}
+
+div.rollup {
+  float: right;
+  opacity: .6;
+  text-shadow: #000000 0px 1px 1px;
+}
+a.rollup:link,a.rollup:visited,a.rollup:hover,a.rollup:active {
+  color: black;
+  text-decoration: none;
+}
+
+div.feeditems {
+}
+
+div.hiddenfeeditems {
+  display:None;
+}
+
+.link {
+  background-color: transparent;
+  border: none;
+  color: blue;
+  cursor: pointer;
+}
