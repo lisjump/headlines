@@ -8,7 +8,7 @@ from datetime import *
 from time import mktime
 feeddir = globalvars.feeddir
 diskdir = globalvars.diskdir
-db = globalvars.db
+db = diskdir + globalvars.db
 
 def getDBCategories():
   conn = sqlite3.connect(db)
