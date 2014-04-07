@@ -10,6 +10,145 @@ feeddir = globalvars.feeddir
 diskdir = globalvars.diskdir
 db = diskdir + globalvars.db
 
+class Entry():
+    def __init__(self, parent, link, title, description, age): 
+      self.parent = parent
+      self.link = link
+      self.title = title
+      self.description = description
+      self.age = age
+      self.shortContent = ""
+      self.longContent = ""
+      
+      self.fillContent()
+      
+    def fillContent(self):
+      try:
+        self.longContent = "<a href=\"%s\">%s</a><BR>%s<BR>\n" % (self.link, self.title, self.description)
+        self.shortContent = "<a href=\"%s\">%s</a><BR>\n" % (self.link, self.title)
+      except UnicodeEncodeError:
+        pass
+    
+class Feed():
+    def __init__(self, parent, name, gui, link, rss, desccount, descage, maxcount, maxage): 
+      self.parent = parent
+      self.name = name
+      self.gui = gui
+      self.link = link
+      self.rss = rss
+      self.desccount = desccount
+      self.descage = descage
+      self.maxcount = maxcount
+      self.maxage = maxage
+      self.newestEntryAge = timedelta.max
+      self.entries = []
+      self.header = "<span id=\"%stoggle\" onClick=\"CollapseMenu('%sentries', '%stoggle');\" class='link'>[-]</span>"  % (self.name, self.name, self.name)
+      self.title = " <a href=\"%s\">%s</a>"  % (self.link, self.gui)
+      self.beginlist = "<div><div class=\"feeditems\" id=\"%sentries\"><ul class=\"feeditems\">\n"  % (self.name)
+      self.listContent = ""
+      self.footer = "</ul></div></div>\n"
+
+      self.fixDefaults()
+      self.getEntries()
+      self.fillContent()
+    
+    def fixDefaults(self):
+		if self.desccount or self.desccount == 0:
+		  pass
+		elif self.parent.desccount or self.parent.desccount == 0:
+		  self.desccount = self.parent.desccount
+		else:
+		  self.desccount = 2
+	
+		if self.descage or self.descage == 0:
+		  pass
+		elif self.parent.descage or self.parent.descage == 0:
+		  self.descage = self.parent.descage
+		else:
+		  self.descage = 1
+	
+		if self.maxcount or self.maxcount == 0:
+		  pass
+		elif self.parent.maxcount or self.parent.maxcount == 0:
+		  self.maxcount = self.parent.maxcount
+		else:
+		  self.maxcount = 20
+	
+		if self.maxage or self.maxage == 0:
+		  pass
+		elif self.parent.maxage or self.parent.maxage == 0:
+		  self.maxage = self.parent.maxage
+		else:
+		  self.maxage = 10
+		
+    def getEntries(self):
+      print ("  %s" % (self.gui))
+      doc = feedparser.parse(self.rss)
+      for entry in doc.entries:
+	    try:
+	      entrytime = datetime.fromtimestamp(mktime(entry.published_parsed))
+	    except:
+	      entrytime  = datetime.now()
+	    entryage = datetime.now() - entrytime
+	    if entryage.days <= self.maxage:
+	      self.entries.append(Entry(self, entry.link, entry.title, entry.description, entryage))
+	      if not self.newestEntryAge or self.newestEntryAge > entryage:
+	        self.newestEntryAge = entryage
+	
+    def fillContent(self):
+      count = 0
+      for entry in self.entries:
+	    if entry.age.days < self.descage and count < self.desccount:
+	      self.listContent = self.listContent + "<li>" + entry.longContent + "\n"
+	      count = count + 1
+	    elif entry.age.days < self.maxage and count < self.maxcount:
+	      self.listContent = self.listContent + "<li>" + entry.shortContent + "\n"
+	      count = count + 1
+
+class Category():
+    def __init__(self, name, gui, desccount, descage, maxcount, maxage): 
+      self.name = name
+      self.gui = gui
+      self.desccount = desccount
+      self.descage = descage
+      self.maxcount = maxcount
+      self.maxage = maxage
+      self.feeds = {}
+      self.getFeeds()
+      
+    def getFeeds(self):
+      print ("Doing %s" % (self.gui))
+      conn = sqlite3.connect(db)
+      c = conn.cursor()
+      c.execute("select name, gui, link, rss, desccount, descage, maxcount, maxage from feeds where category = ?", (self.name,))
+      rawfeeds = c.fetchall()
+      for feed in rawfeeds:
+        self.feeds[feed[0]] = Feed(self, feed[0], feed[1], feed[2], feed[3], feed[4], feed[5], feed[6], feed[7])
+      conn.close()
+    
+    def createFile(self):
+      outfile = codecs.open(diskdir + self.name + ".html", "w", "utf-8")
+      outfile.write("<div class=\"boxcontent\">\n")
+      
+      sortedfeeds = {}
+      
+      for feedname in self.feeds:
+        sortedfeeds[str(self.feeds[feedname].newestEntryAge) + feedname] = self.feeds[feedname]
+
+      for feedname in sorted(sortedfeeds.keys()):
+        if sortedfeeds[feedname].listContent == "":
+          outfile.write(sortedfeeds[feedname].title)
+          outfile.write("<BR>")
+        else:
+          outfile.write(sortedfeeds[feedname].header)
+          outfile.write(sortedfeeds[feedname].title)
+          outfile.write(sortedfeeds[feedname].beginlist)
+          outfile.write(sortedfeeds[feedname].listContent)
+          outfile.write(sortedfeeds[feedname].footer)
+        
+      outfile.write("</div>")
+      outfile.close()
+      
 def getDBCategories():
   conn = sqlite3.connect(db)
   c = conn.cursor()
@@ -17,99 +156,11 @@ def getDBCategories():
   rawcats = c.fetchall()
   categories = {}
   for cat in rawcats:
-    categories[cat[0]] = {}
-    categories[cat[0]]['gui'] = cat[1]
-    categories[cat[0]]['desccount'] = cat[2]
-    categories[cat[0]]['descage'] = cat[3]
-    categories[cat[0]]['maxcount'] = cat[4]
-    categories[cat[0]]['maxage'] = cat[5]
+    categories[cat[0]] = Category(cat[0], cat[1], cat[2], cat[3], cat[4], cat[5])
   conn.close()
   return categories
 
-def getDBFeeds(catname):
-  conn = sqlite3.connect(db)
-  c = conn.cursor()
-  c.execute("select name, gui, link, rss, desccount, descage, maxcount, maxage from feeds where category = ?", (catname,))
-  rawfeeds = c.fetchall()
-  feeds = {}
-  for feed in rawfeeds:
-    feeds[feed[0]] = {}
-    feeds[feed[0]]['gui'] = feed[1]
-    feeds[feed[0]]['link'] = feed[2]
-    feeds[feed[0]]['rss'] = feed[3]
-    feeds[feed[0]]['desccount'] = feed[4]
-    feeds[feed[0]]['descage'] = feed[5]
-    feeds[feed[0]]['maxcount'] = feed[6]
-    feeds[feed[0]]['maxage'] = feed[7]
-  conn.close()
-  return feeds
-
 def updateFeeds():
-	category = getDBCategories()
-	for catname in category:
-	  feeds = getDBFeeds(catname)
-
-	  print ("Doing %s" % (category[catname]['gui']))
-	  outfile = codecs.open(diskdir + catname + ".html", "w", "utf-8")
-	  outfile.write("<div class=\"boxcontent\">\n");
-	  emptyBlogs = ""
-
-	  for feedname in feeds:
-		print ("  %s" % (feeds[feedname]['gui']))
-		doc = feedparser.parse(feeds[feedname]['rss'])
-
-		writethis = "<span id=\"%stoggle\" onClick=\"CollapseMenu('%sentries', '%stoggle');\" class='link'>[-]</span>"  % (feedname, feedname, feedname)
-		writethis = writethis + " <a href=\"%s\">%s</a>"  % (feeds[feedname]['link'], feeds[feedname]['gui'])
-		writethis = writethis + "<div><div class=\"feeditems\" id=\"%sentries\"><ul class=\"feeditems\">\n"  % (feedname)
-		count = 0
-		if feeds[feedname]['desccount'] or feeds[feedname]['desccount'] == 0:
-		  desccount = feeds[feedname]['desccount']
-		elif category[catname]['desccount'] or category[catname]['desccount'] == 0:
-		  desccount = category[catname]['desccount']
-		else:
-		  desccount = 2
-	
-		if feeds[feedname]['descage'] or feeds[feedname]['descage'] == 0:
-		  descage = feeds[feedname]['descage']
-		elif category[catname]['descage'] or category[catname]['descage'] == 0:
-		  descage = category[catname]['descage']
-		else:
-		  descage = 1
-	
-		if feeds[feedname]['maxcount'] or feeds[feedname]['maxcount'] == 0:
-		  maxcount = feeds[feedname]['maxcount']
-		elif category[catname]['maxcount'] or category[catname]['maxcount'] == 0:
-		  maxcount = category[catname]['maxcount']
-		else:
-		  maxcount = 20
-	
-		if feeds[feedname]['maxage'] or feeds[feedname]['maxage'] == 0:
-		  maxage = feeds[feedname]['maxage']
-		elif category[catname]['maxage'] or category[catname]['maxage'] == 0:
-		  maxage = category[catname]['maxage']
-		else:
-		  maxage = 10
-	
-	  
-		for entry in doc.entries:
-		  try:
-			try:
-			  entrytime = datetime.fromtimestamp(mktime(entry.published_parsed))
-			except:
-			  entrytime  = datetime.now()
-			entryage = datetime.now() - entrytime
-			if entryage.days < descage and count < desccount:
-			  writethis = writethis + "<li><a href=\"%s\">%s</a><BR>%s<BR>\n" % (entry.link, entry.title, entry.description)
-			  count = count + 1
-			elif entryage.days < maxage and count < maxcount:
-			  writethis = writethis + "<li><a href=\"%s\">%s</a><BR>\n" % (entry.link, entry.title)
-			  count = count + 1
-		  except UnicodeEncodeError:
-			pass
-		writethis = writethis + "</ul></div></div>\n"
-		if count > 0:
-		  outfile.write(writethis)
-		else:
-		  emptyBlogs = emptyBlogs + " <a href=\"%s\">%s</a><br>\n"  % (feeds[feedname]['link'], feeds[feedname]['gui'])
-	  outfile.write("%s</div>\n" % emptyBlogs)
-	  outfile.close()
+	categories = getDBCategories()
+	for catname in categories:
+	  categories[catname].createFile()
